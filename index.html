@@ -125,15 +125,22 @@
     </div>
   </div>
 
-  <div class="center">
+  <!-- Wrap answer + button in a form so iPhone "Go" submits -->
+  <form class="center" id="answerForm" style="margin:8px 0">
     <div class="row">
-      <input id="answer" type="text" inputmode="numeric" placeholder="?" style="width:90px" />
-      <button class="btn" id="submitBtn">Valider ✅</button>
+      <input id="answer" type="text" inputmode="numeric" enterkeyhint="go"
+             placeholder="?" style="width:90px" autocomplete="off" />
+      <button type="submit" class="btn" id="submitBtn">Valider ✅</button>
     </div>
-  </div>
+  </form>
 
   <div class="center" style="margin-top:10px">
     <div class="kbd" id="keypad"></div>
+  </div>
+
+  <!-- Big Enter button for touch-only use -->
+  <div class="center" style="margin-top:8px">
+    <button class="btn secondary" id="enterKey">Entrée ↩︎</button>
   </div>
 
   <div class="spacer"></div>
@@ -173,6 +180,13 @@ const EASY_MULT_MAX = 10;
 const HARD_MULT_MAX = 20; // 2..20
 const CONFETTI_DURATION_MS = 240;
 const CONFETTI_NUM_PIECES = 24;
+
+/* iOS handling:
+   - Set NO_IOS_KEYBOARD = true to prevent opening the iPhone keyboard (use on-screen keypad only).
+   - Set to false if you prefer letting the iPhone keyboard appear; the Return key will show "Go" and submit.
+*/
+const IS_IOS = /iP(hone|ad|od)|Macintosh.*Mobile/.test(navigator.userAgent);
+const NO_IOS_KEYBOARD = true;
 
 /* ========= State ========= */
 let state = {
@@ -225,9 +239,7 @@ function topConfig(mode, diff, n=10){
 /* ========= Helpers ========= */
 const $ = sel => document.querySelector(sel);
 const fmtTime = s => `${s.toFixed(1)}s`;
-function randInt(a,b){ // inclusive
-  return Math.floor(Math.random()*(b-a+1))+a;
-}
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
 /* ========= UI Wiring ========= */
@@ -235,6 +247,7 @@ const startEl = $("#start"), gameEl = $("#game"), resultEl = $("#result");
 const nameInput = $("#name"), nameError = $("#nameError");
 const progressLabel = $("#progressLabel"), timerLabel=$("#timerLabel");
 const problemText=$("#problemText"), feedback=$("#feedback");
+const answerForm=$("#answerForm");
 const answerInput=$("#answer"), submitBtn=$("#submitBtn");
 const keypadEl=$("#keypad"), barFill=$("#barFill");
 const backBtn=$("#backBtn"), startBtn=$("#startBtn");
@@ -244,28 +257,51 @@ const cfgTitle=$("#cfgTitle"), cfgTbody=$("#cfgTbody");
 const globalTbody=$("#globalTbody");
 const confettiCanvas = $("#confetti");
 const ctx = confettiCanvas.getContext("2d");
+const enterKeyBtn = $("#enterKey");
+
+/* Prevent iPhone keyboard if desired */
+if (IS_IOS && NO_IOS_KEYBOARD) {
+  answerInput.readOnly = true;
+  // Blur immediately on accidental focus to avoid bringing up the keyboard
+  answerInput.addEventListener("focus", () => answerInput.blur());
+} else {
+  // Allow keyboard: pressing Return/Go submits (form handler below)
+  answerInput.readOnly = false;
+}
+
+/* Form submit (works with iPhone "Go" key) */
+answerForm.addEventListener("submit", (e)=>{
+  e.preventDefault();
+  submitAnswer();
+});
 
 /* Build keypad */
 ["7","8","9","4","5","6","1","2","3","0","⌫","Effacer"].forEach(k=>{
   const b=document.createElement("button");
+  b.type="button";
   b.textContent=k;
   b.addEventListener("click",()=>{
     if(!state.acceptingInput) return;
     if(k==="⌫"){ answerInput.value = answerInput.value.slice(0,-1); }
     else if(k==="Effacer"){ answerInput.value=""; }
     else { answerInput.value += k; }
-    answerInput.focus();
+    // keep focus away on iOS if we're suppressing the keyboard
+    if (!(IS_IOS && NO_IOS_KEYBOARD)) answerInput.focus();
   });
   keypadEl.appendChild(b);
 });
+enterKeyBtn.addEventListener("click", submitAnswer);
+
+/* Also handle hardware Enter (desktop) */
 answerInput.addEventListener("keydown",(e)=>{
-  if(e.key==="Enter"){ submitAnswer(); }
-  // prevent non-digits except backspace/delete/arrow keys
+  if(e.key==="Enter"){ e.preventDefault(); submitAnswer(); }
+  // prevent non-digits except control keys
   if (!/[0-9]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Enter"].includes(e.key)) {
     e.preventDefault();
   }
 });
-submitBtn.addEventListener("click", submitAnswer);
+
+submitBtn.addEventListener("click", (e)=>{ e.preventDefault(); submitAnswer(); });
 backBtn.addEventListener("click", ()=>showScreen("start"));
 startBtn.addEventListener("click", startSession);
 $("#againBtn").addEventListener("click", startSession);
@@ -320,9 +356,9 @@ function escapeHtml(s){ return (s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"
 
 /* Screen switching */
 function showScreen(which){
-  startEl.classList.toggle("hidden", which!=="start");
-  gameEl.classList.toggle("hidden", which!=="game");
-  resultEl.classList.toggle("hidden", which!=="result");
+  $("#start").classList.toggle("hidden", which!=="start");
+  $("#game").classList.toggle("hidden", which!=="game");
+  $("#result").classList.toggle("hidden", which!=="result");
   if(which==="start"){ fillGlobalTable(); }
 }
 
@@ -336,9 +372,7 @@ function startSession(){
   }
   nameError.textContent="";
   state.name = nm;
-  // persist last name
-  const s = loadScores();
-  saveScores(s.entries, nm);
+  const s = loadScores(); saveScores(s.entries, nm);
 
   state.mode = document.querySelector('#modeChips input[name="mode"]:checked').value;
   state.diff = document.querySelector('#diffChips input[name="diff"]:checked').value;
@@ -352,14 +386,13 @@ function startSession(){
   answerInput.value="";
   progressLabel.textContent = `Question 1/${QUESTIONS_PER_SESSION}`;
   cfgPill.textContent = `${state.mode} · ${state.diff}`;
-  setBar(0);
-  setTimer(0);
+  setBar(0); setTimer(0);
 
   startTimer();
   generateQuestion();
 
   showScreen("game");
-  answerInput.focus();
+  if (!(IS_IOS && NO_IOS_KEYBOARD)) answerInput.focus();
 }
 function endSession(){
   stopTimer();
@@ -374,7 +407,6 @@ function endSession(){
   };
   addScore(entry);
 
-  // Fill results
   resultSummary.textContent = `${state.name}, tu as ${state.correctCount} / ${QUESTIONS_PER_SESSION} bonnes réponses.`;
   resultDetail.textContent = `Temps total : ${fmtTime(totalTime)} · Moyenne : ${fmtTime(totalTime/QUESTIONS_PER_SESSION)}`;
   cfgTitle.textContent = `🏅 Top 10 — ${state.mode} · ${state.diff}`;
@@ -445,9 +477,9 @@ function submitAnswer(){
     feedback.className = "alert center bad";
     return;
   }
-  // lock input to avoid double scoring
   state.acceptingInput = false;
   submitBtn.disabled = true;
+  enterKeyBtn.disabled = true;
 
   const given = Number(text);
   const ok = (given === state.currentAnswer);
@@ -465,7 +497,6 @@ function submitAnswer(){
   setBar(state.questionIndex);
   progressLabel.textContent = `Question ${Math.min(state.questionIndex+1,QUESTIONS_PER_SESSION)}/${QUESTIONS_PER_SESSION}`;
 
-  // next step
   if(state.questionIndex >= QUESTIONS_PER_SESSION){
     setTimeout(endSession, 450);
   }else{
@@ -474,7 +505,8 @@ function submitAnswer(){
       generateQuestion();
       state.acceptingInput = true;
       submitBtn.disabled = false;
-      answerInput.focus();
+      enterKeyBtn.disabled = false;
+      if (!(IS_IOS && NO_IOS_KEYBOARD)) answerInput.focus();
     }, 420);
   }
 }
@@ -482,7 +514,6 @@ function submitAnswer(){
 /* Confetti (top strip, fast, light) */
 let confettiTimer=null, confettiPieces=[];
 function playConfetti(){
-  // size canvas
   confettiCanvas.width = window.innerWidth;
   confettiCanvas.height = Math.max(120, Math.round(window.innerHeight*0.16));
   confettiCanvas.style.display = "block";
@@ -524,6 +555,7 @@ window.addEventListener("resize", ()=>{
 
 /* ======== Start on start screen ======== */
 showScreen("start");
+function escapeHtml(s){ return (s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
 </script>
 </body>
 </html>
