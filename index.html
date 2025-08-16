@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Maths Magiques ! 🌈</title>
+<style>
+  :root{
+    --bg:#F7F5FF; --card:#FFFFFF; --ink:#433C8E; --muted:#6F6C99;
+    --brand:#5E4AE3; --ok:#0C8346; --bad:#B00020;
+    --accent:#E6F0FF; --accent2:#CFE3FF; --accent3:#FFE7D1;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid #E6E0FF;
+    border-radius:14px;
+    padding:20px 18px;
+    width:min(720px,92vw);
+    box-shadow:0 8px 24px rgba(20,16,48,.06);
+  }
+  h1{font-size:28px; margin:6px 0; color:#5E4AE3}
+  h2{font-size:18px; margin:10px 0; color:var(--ink)}
+  p.muted{color:var(--muted); margin:6px 0 12px}
+  .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+  .center{display:flex; justify-content:center; align-items:center}
+  .spacer{height:12px}
+  label.lbl{font-weight:600}
+  input[type="text"]{
+    font-size:18px; padding:10px 12px; width:220px; text-align:center;
+    border:1px solid #D0D0E3; border-radius:8px; outline:none; background:#fff; color:#102A43;
+  }
+  input[type="text"]:focus{border-color:var(--brand); box-shadow:0 0 0 3px rgba(94,74,227,.12)}
+  .error{color:var(--bad); min-height:20px}
+  .btn{
+    appearance:none; border:none; background:var(--brand); color:#fff; font-weight:700;
+    padding:10px 16px; border-radius:10px; cursor:pointer; transition:transform .05s ease;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.secondary{background:#274690}
+  .btn.ghost{background:#fff; color:#274690; border:1px solid #274690}
+  .grid{display:grid; gap:12px}
+  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  table{width:100%; border-collapse:collapse; overflow:hidden; border-radius:10px}
+  thead th{background:#F0ECFF; color:var(--ink); padding:8px; font-weight:700; text-align:center}
+  tbody td{padding:8px; text-align:center; border-top:1px solid #EEEAFD}
+  .pill{display:inline-block; padding:4px 10px; border-radius:999px; background:#F0ECFF}
+  .bar{height:10px; background:#ECEAFF; border-radius:999px; overflow:hidden}
+  .bar > i{display:block; height:100%; width:0; background:linear-gradient(90deg,#4D96FF,#6BCB77)}
+  .kbd{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; width:min(360px,80vw)}
+  .kbd button{padding:12px 0; font-size:18px; border-radius:10px; border:1px solid #D7D7EE; background:#fff; cursor:pointer}
+  .alert{min-height:24px; font-weight:700}
+  .ok{color:var(--ok)} .bad{color:var(--bad)}
+  .accent{background:var(--accent); border-radius:10px; padding:8px 12px; display:flex; justify-content:space-between}
+  .hidden{display:none}
+  /* Pretty radios */
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .chip{position:relative}
+  .chip input{position:absolute; inset:0; opacity:0}
+  .chip span{
+    display:inline-block; padding:8px 12px; border-radius:999px; border:1px solid #D0D0E3;
+    background:#fff; cursor:pointer; user-select:none; font-weight:600; color:var(--ink)
+  }
+  .chip input:checked + span{border-color:var(--brand); box-shadow:0 0 0 3px rgba(94,74,227,.12); color:#5E4AE3}
+  /* Confetti canvas top strip */
+  #confetti{
+    position:fixed; left:0; top:0; width:100vw; height:16vh; pointer-events:none; display:none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="confetti"></canvas>
+
+<main class="card" id="start">
+  <h1>Maths Magiques ! ✨</h1>
+  <p class="muted">Exerce-toi aux additions et multiplications. Choisis et appuie sur <b>Démarrer</b> !</p>
+
+  <div class="row">
+    <label for="name" class="lbl">Nom du joueur</label>
+    <input id="name" type="text" placeholder="Alice" />
+  </div>
+  <div class="error" id="nameError"></div>
+
+  <h2>Opération</h2>
+  <div class="chips" id="modeChips">
+    <label class="chip"><input type="radio" name="mode" value="Addition" checked /><span>Addition</span></label>
+    <label class="chip"><input type="radio" name="mode" value="Multiplication" /><span>Multiplication</span></label>
+    <label class="chip"><input type="radio" name="mode" value="Mixte" /><span>Mixte</span></label>
+  </div>
+
+  <h2>Difficulté</h2>
+  <div class="chips" id="diffChips">
+    <label class="chip"><input type="radio" name="diff" value="Facile" checked /><span>Facile</span></label>
+    <label class="chip"><input type="radio" name="diff" value="Difficile" /><span>Difficile</span></label>
+  </div>
+
+  <div class="spacer"></div>
+  <button class="btn" id="startBtn">Démarrer ▶</button>
+
+  <div class="spacer"></div>
+  <h2>🏅 Top 10 (Tous modes et difficultés)</h2>
+  <table>
+    <thead><tr><th>No</th><th>Nom</th><th>Mode</th><th>Diff</th><th>Score</th><th>Temps</th></tr></thead>
+    <tbody id="globalTbody"></tbody>
+  </table>
+</main>
+
+<main class="card hidden" id="game">
+  <div class="accent">
+    <div><b id="progressLabel">Question 1/20</b></div>
+    <div><b id="timerLabel">Temps : 0.0s</b></div>
+  </div>
+
+  <div class="center" style="margin:14px 0 4px">
+    <div>
+      <div class="center" style="font-size:36px; font-weight:800; color:#102A43;" id="problemText">3 + 4 = ?</div>
+      <div id="feedback" class="alert center muted"></div>
+    </div>
+  </div>
+
+  <div class="center">
+    <div class="row">
+      <input id="answer" type="text" inputmode="numeric" placeholder="?" style="width:90px" />
+      <button class="btn" id="submitBtn">Valider ✅</button>
+    </div>
+  </div>
+
+  <div class="center" style="margin-top:10px">
+    <div class="kbd" id="keypad"></div>
+  </div>
+
+  <div class="spacer"></div>
+  <div class="bar"><i id="barFill"></i></div>
+
+  <div class="spacer"></div>
+  <div class="row" style="justify-content:space-between">
+    <button class="btn ghost" id="backBtn">⬅ Menu</button>
+    <span class="pill" id="configPill">—</span>
+  </div>
+</main>
+
+<main class="card hidden" id="result">
+  <h1>Bravo ! 🏆</h1>
+  <div id="resultSummary" class="center" style="font-weight:700; margin-top:6px"></div>
+  <div id="resultDetail" class="center muted" style="margin:6px 0 10px"></div>
+
+  <h2 id="cfgTitle">🏅 Top 10 — </h2>
+  <table>
+    <thead><tr><th>No</th><th>Nom</th><th>Score</th><th>Temps</th></tr></thead>
+    <tbody id="cfgTbody"></tbody>
+  </table>
+
+  <div class="spacer"></div>
+  <div class="row center" style="justify-content:center">
+    <button class="btn" id="againBtn">Rejouer ▶</button>
+    <button class="btn secondary" id="menuBtn">Menu ⬅</button>
+  </div>
+</main>
+
+<script>
+/* ========= Constants ========= */
+const QUESTIONS_PER_SESSION = 20;
+const EASY_ADDITION_MAX_SUM = 100;
+const HARD_ADDITION_MAX_SUM = 1000;
+const EASY_MULT_MAX = 10;
+const HARD_MULT_MAX = 20; // 2..20
+const CONFETTI_DURATION_MS = 240;
+const CONFETTI_NUM_PIECES = 24;
+
+/* ========= State ========= */
+let state = {
+  name: "",
+  mode: "Addition",
+  diff: "Facile",
+  questionIndex: 0,
+  correctCount: 0,
+  currentAnswer: null,
+  sessionStartMs: 0,
+  currentQStartMs: 0,
+  acceptingInput: true,
+  timerHandle: null
+};
+
+/* ========= Storage (localStorage) ========= */
+function loadScores() {
+  const raw = localStorage.getItem("math_fun_scores");
+  const last = localStorage.getItem("math_fun_last_name") || "";
+  let entries = [];
+  if (raw) {
+    try { entries = JSON.parse(raw) || []; } catch {}
+  }
+  return {entries, last};
+}
+function saveScores(entries, lastName){
+  localStorage.setItem("math_fun_scores", JSON.stringify(entries));
+  localStorage.setItem("math_fun_last_name", lastName || "");
+}
+function addScore(entry){
+  const s = loadScores();
+  s.entries.push(entry);
+  saveScores(s.entries, s.last);
+}
+function scoreSort(a,b){
+  if (b.correct !== a.correct) return b.correct - a.correct;
+  if (a.time !== b.time) return a.time - b.time;
+  return b.ts - a.ts;
+}
+function topGlobal(n=10){
+  const s = loadScores();
+  return s.entries.slice().sort(scoreSort).slice(0,n);
+}
+function topConfig(mode, diff, n=10){
+  const s = loadScores();
+  const filt = s.entries.filter(e => e.mode===mode && e.difficulty===diff);
+  return filt.sort(scoreSort).slice(0,n);
+}
+
+/* ========= Helpers ========= */
+const $ = sel => document.querySelector(sel);
+const fmtTime = s => `${s.toFixed(1)}s`;
+function randInt(a,b){ // inclusive
+  return Math.floor(Math.random()*(b-a+1))+a;
+}
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+/* ========= UI Wiring ========= */
+const startEl = $("#start"), gameEl = $("#game"), resultEl = $("#result");
+const nameInput = $("#name"), nameError = $("#nameError");
+const progressLabel = $("#progressLabel"), timerLabel=$("#timerLabel");
+const problemText=$("#problemText"), feedback=$("#feedback");
+const answerInput=$("#answer"), submitBtn=$("#submitBtn");
+const keypadEl=$("#keypad"), barFill=$("#barFill");
+const backBtn=$("#backBtn"), startBtn=$("#startBtn");
+const cfgPill=$("#configPill");
+const resultSummary=$("#resultSummary"), resultDetail=$("#resultDetail");
+const cfgTitle=$("#cfgTitle"), cfgTbody=$("#cfgTbody");
+const globalTbody=$("#globalTbody");
+const confettiCanvas = $("#confetti");
+const ctx = confettiCanvas.getContext("2d");
+
+/* Build keypad */
+["7","8","9","4","5","6","1","2","3","0","⌫","Effacer"].forEach(k=>{
+  const b=document.createElement("button");
+  b.textContent=k;
+  b.addEventListener("click",()=>{
+    if(!state.acceptingInput) return;
+    if(k==="⌫"){ answerInput.value = answerInput.value.slice(0,-1); }
+    else if(k==="Effacer"){ answerInput.value=""; }
+    else { answerInput.value += k; }
+    answerInput.focus();
+  });
+  keypadEl.appendChild(b);
+});
+answerInput.addEventListener("keydown",(e)=>{
+  if(e.key==="Enter"){ submitAnswer(); }
+  // prevent non-digits except backspace/delete/arrow keys
+  if (!/[0-9]/.test(e.key) && !["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Enter"].includes(e.key)) {
+    e.preventDefault();
+  }
+});
+submitBtn.addEventListener("click", submitAnswer);
+backBtn.addEventListener("click", ()=>showScreen("start"));
+startBtn.addEventListener("click", startSession);
+$("#againBtn").addEventListener("click", startSession);
+$("#menuBtn").addEventListener("click", ()=>showScreen("start"));
+
+/* Mode/Diff chips */
+document.querySelectorAll('#modeChips input[name="mode"]').forEach(r=>{
+  r.addEventListener("change",()=>state.mode=r.value);
+});
+document.querySelectorAll('#diffChips input[name="diff"]').forEach(r=>{
+  r.addEventListener("change",()=>state.diff=r.value);
+});
+
+/* Load last name & global table */
+(function initStart(){
+  const s=loadScores();
+  if(s.last) nameInput.value=s.last;
+  fillGlobalTable();
+})();
+
+function fillGlobalTable(){
+  const rows = topGlobal(10);
+  globalTbody.innerHTML="";
+  if(rows.length===0){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td></td><td>—</td><td>—</td><td>—</td><td>Aucune partie</td><td></td>`;
+    globalTbody.appendChild(tr); return;
+  }
+  rows.forEach((e,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML = `<td>${i+1}</td><td>${escapeHtml(e.name)}</td><td>${e.mode}</td><td>${e.difficulty}</td>
+    <td>${e.correct}/${QUESTIONS_PER_SESSION}</td><td>${fmtTime(e.time)}</td>`;
+    globalTbody.appendChild(tr);
+  });
+}
+function fillConfigTable(mode,diff){
+  const rows = topConfig(mode,diff,10);
+  cfgTbody.innerHTML="";
+  if(rows.length===0){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td></td><td>—</td><td>Aucune partie</td><td></td>`;
+    cfgTbody.appendChild(tr); return;
+  }
+  rows.forEach((e,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML = `<td>${i+1}</td><td>${escapeHtml(e.name)}</td>
+    <td>${e.correct}/${QUESTIONS_PER_SESSION}</td><td>${fmtTime(e.time)}</td>`;
+    cfgTbody.appendChild(tr);
+  });
+}
+function escapeHtml(s){ return (s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+
+/* Screen switching */
+function showScreen(which){
+  startEl.classList.toggle("hidden", which!=="start");
+  gameEl.classList.toggle("hidden", which!=="game");
+  resultEl.classList.toggle("hidden", which!=="result");
+  if(which==="start"){ fillGlobalTable(); }
+}
+
+/* Session control */
+function startSession(){
+  const nm = nameInput.value.trim();
+  if(!nm){
+    nameError.textContent="Merci d’entrer un nom 🙂";
+    nameInput.focus();
+    return;
+  }
+  nameError.textContent="";
+  state.name = nm;
+  // persist last name
+  const s = loadScores();
+  saveScores(s.entries, nm);
+
+  state.mode = document.querySelector('#modeChips input[name="mode"]:checked').value;
+  state.diff = document.querySelector('#diffChips input[name="diff"]:checked').value;
+
+  state.questionIndex = 0;
+  state.correctCount = 0;
+  state.sessionStartMs = Date.now();
+  state.currentQStartMs = Date.now();
+  state.acceptingInput = true;
+
+  answerInput.value="";
+  progressLabel.textContent = `Question 1/${QUESTIONS_PER_SESSION}`;
+  cfgPill.textContent = `${state.mode} · ${state.diff}`;
+  setBar(0);
+  setTimer(0);
+
+  startTimer();
+  generateQuestion();
+
+  showScreen("game");
+  answerInput.focus();
+}
+function endSession(){
+  stopTimer();
+  const totalTime = (Date.now()-state.sessionStartMs)/1000;
+  const entry = {
+    ts: Math.floor(Date.now()/1000),
+    name: state.name||"Sans nom",
+    mode: state.mode,
+    difficulty: state.diff,
+    correct: state.correctCount,
+    time: totalTime
+  };
+  addScore(entry);
+
+  // Fill results
+  resultSummary.textContent = `${state.name}, tu as ${state.correctCount} / ${QUESTIONS_PER_SESSION} bonnes réponses.`;
+  resultDetail.textContent = `Temps total : ${fmtTime(totalTime)} · Moyenne : ${fmtTime(totalTime/QUESTIONS_PER_SESSION)}`;
+  cfgTitle.textContent = `🏅 Top 10 — ${state.mode} · ${state.diff}`;
+  fillConfigTable(state.mode, state.diff);
+
+  showScreen("result");
+}
+
+/* Timer */
+function startTimer(){
+  if(state.timerHandle) cancelAnimationFrame(state.timerHandle);
+  const start = state.sessionStartMs;
+  const tick = ()=>{
+    const t = (Date.now()-start)/1000;
+    setTimer(t);
+    state.timerHandle = requestAnimationFrame(tick);
+  };
+  tick();
+}
+function stopTimer(){
+  if(state.timerHandle){ cancelAnimationFrame(state.timerHandle); state.timerHandle=null; }
+}
+function setTimer(seconds){
+  timerLabel.textContent = `Temps : ${seconds.toFixed(1)}s`;
+}
+function setBar(qIndex){
+  const pct = (qIndex/QUESTIONS_PER_SESSION)*100;
+  barFill.style.width = `${pct}%`;
+}
+
+/* Questions */
+function generateQuestion(){
+  let op = state.mode==="Mixte" ? pick(["Addition","Multiplication"]) : state.mode;
+  let a,b,ans,txt;
+
+  if(op==="Addition"){
+    const cap = state.diff==="Facile" ? EASY_ADDITION_MAX_SUM : HARD_ADDITION_MAX_SUM;
+    a = randInt(0, cap);
+    b = randInt(0, cap - a);
+    ans = a + b;
+    txt = `${a} + ${b} = ?`;
+  }else{
+    if(state.diff==="Facile"){
+      a = randInt(0, EASY_MULT_MAX);
+      b = randInt(0, EASY_MULT_MAX);
+    }else{
+      a = randInt(2, HARD_MULT_MAX);
+      b = randInt(2, HARD_MULT_MAX);
+    }
+    if(Math.random()<0.5){ const t=a; a=b; b=t; }
+    ans = a * b;
+    txt = `${a} × ${b} = ?`;
+  }
+
+  state.currentAnswer = ans;
+  state.currentQStartMs = Date.now();
+  problemText.textContent = txt;
+  feedback.textContent = "";
+  feedback.className = "alert center muted";
+}
+
+/* Submit */
+function submitAnswer(){
+  if(!state.acceptingInput) return;
+  const text = answerInput.value.trim();
+  if(!/^\d+$/.test(text)){
+    feedback.textContent = "Merci d’entrer un nombre 🙂";
+    feedback.className = "alert center bad";
+    return;
+  }
+  // lock input to avoid double scoring
+  state.acceptingInput = false;
+  submitBtn.disabled = true;
+
+  const given = Number(text);
+  const ok = (given === state.currentAnswer);
+  if(ok){
+    state.correctCount += 1;
+    feedback.textContent = "Bravo ! 🎉";
+    feedback.className = "alert center ok";
+    playConfetti();
+  }else{
+    feedback.textContent = `Oups ! La bonne réponse était ${state.currentAnswer}.`;
+    feedback.className = "alert center bad";
+  }
+
+  state.questionIndex += 1;
+  setBar(state.questionIndex);
+  progressLabel.textContent = `Question ${Math.min(state.questionIndex+1,QUESTIONS_PER_SESSION)}/${QUESTIONS_PER_SESSION}`;
+
+  // next step
+  if(state.questionIndex >= QUESTIONS_PER_SESSION){
+    setTimeout(endSession, 450);
+  }else{
+    setTimeout(()=>{
+      answerInput.value="";
+      generateQuestion();
+      state.acceptingInput = true;
+      submitBtn.disabled = false;
+      answerInput.focus();
+    }, 420);
+  }
+}
+
+/* Confetti (top strip, fast, light) */
+let confettiTimer=null, confettiPieces=[];
+function playConfetti(){
+  // size canvas
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = Math.max(120, Math.round(window.innerHeight*0.16));
+  confettiCanvas.style.display = "block";
+  confettiPieces = [];
+  for(let i=0;i<CONFETTI_NUM_PIECES;i++){
+    confettiPieces.push({
+      x: randInt(20, confettiCanvas.width-20),
+      y: -randInt(10, 120),
+      r: randInt(4, 8),
+      dx: (Math.random()*2.4-1.2),
+      dy: (Math.random()*2.5+3.5),
+      color: pick(["#FF7AA2","#6BCB77","#4D96FF","#FFD166","#B892FF","#FF6B6B"])
+    });
+  }
+  const start = performance.now();
+  function draw(now){
+    const t = now - start;
+    ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+    confettiPieces.forEach(p=>{
+      p.x += p.dx; p.y += p.dy;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.color; ctx.fill();
+    });
+    if(t < CONFETTI_DURATION_MS){
+      confettiTimer = requestAnimationFrame(draw);
+    }else{
+      ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+      confettiCanvas.style.display = "none";
+    }
+  }
+  confettiTimer = requestAnimationFrame(draw);
+}
+window.addEventListener("resize", ()=>{
+  if(confettiCanvas.style.display==="block"){
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = Math.max(120, Math.round(window.innerHeight*0.16));
+  }
+});
+
+/* ======== Start on start screen ======== */
+showScreen("start");
+</script>
+</body>
+</html>
